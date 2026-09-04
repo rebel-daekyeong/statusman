@@ -11,18 +11,29 @@ model-scoped cap comes from, runs in the background (see
 
 ## Install
 
+statusman is a Claude Code plugin. Add the marketplace, install the plugin, then
+let it write the `statusLine` setting:
+
 ```
+/plugin marketplace add rebel-daekyeong/statusman
+/plugin install statusman@statusman
 /statusman:install
 ```
 
-or directly:
+The same three from a shell, without a Claude Code session:
 
 ```
-node install.js
+claude plugin marketplace add rebel-daekyeong/statusman
+claude plugin install statusman@statusman
+node ~/.claude/plugins/statusman/install.js
 ```
 
-Either writes `statusLine` into `~/.claude/settings.json`, after copying the
-file to `~/.claude/statusman/claude-settings.bak.json`. It sets `padding: 0`,
+Installing the plugin brings the `/statusman` commands; `/statusman:install` is
+what points Claude Code at the statusline itself. To skip the marketplace
+altogether, clone the repo and run `node install.js` out of it.
+
+Either way `statusLine` goes into `~/.claude/settings.json`, after the file is
+copied to `~/.claude/statusman/claude-settings.bak.json`. It sets `padding: 0`,
 which is what lines the statusline up with the rest of Claude Code's output.
 
 To go back:
@@ -30,6 +41,10 @@ To go back:
 ```
 cp ~/.claude/statusman/claude-settings.bak.json ~/.claude/settings.json
 ```
+
+Updating later is `/plugin marketplace update statusman`, and removing it is
+`/plugin uninstall statusman@statusman` — the statusline setting stays until the
+backup is restored.
 
 ## Files
 
