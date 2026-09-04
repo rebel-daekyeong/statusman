@@ -1,5 +1,6 @@
 {
   "name": "statusman",
+  "description": "statusman, a two-line usage statusline for Claude Code.",
   "owner": {
     "name": "Daekyeong Kim",
     "email": "daekyeong.kim@rebellions.ai"

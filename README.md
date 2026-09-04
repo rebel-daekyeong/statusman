@@ -20,17 +20,21 @@ let it write the `statusLine` setting:
 /statusman:install
 ```
 
-The same three from a shell, without a Claude Code session:
+The first two also work from a shell:
 
 ```
 claude plugin marketplace add rebel-daekyeong/statusman
 claude plugin install statusman@statusman
-node ~/.claude/plugins/statusman/install.js
 ```
 
-Installing the plugin brings the `/statusman` commands; `/statusman:install` is
-what points Claude Code at the statusline itself. To skip the marketplace
-altogether, clone the repo and run `node install.js` out of it.
+Installing the plugin brings the `/statusman` commands with it;
+`/statusman:install` is the one that points Claude Code at the statusline
+itself. Without the marketplace, a clone does the same:
+
+```
+git clone https://github.com/rebel-daekyeong/statusman
+node statusman/install.js
+```
 
 Either way `statusLine` goes into `~/.claude/settings.json`, after the file is
 copied to `~/.claude/statusman/claude-settings.bak.json`. It sets `padding: 0`,
