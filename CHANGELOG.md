@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.1.0 — 2026-09-04
 
 - Two-line statusline: organization, account, model, effort, session name and
   working directory on the first line; context window, the 5-hour window, the
