@@ -1,0 +1,15 @@
+#!/bin/sh
+# Lint and test before every commit. Enable with:
+#   git config core.hooksPath .githooks
+set -e
+
+if [ ! -x node_modules/.bin/eslint ]; then
+  echo "pre-commit: eslint is missing — run 'pnpm install' (or 'npm install')" >&2
+  exit 1
+fi
+
+echo "pre-commit: eslint"
+node_modules/.bin/eslint .
+
+echo "pre-commit: node --test"
+node --test test/*.test.js > /dev/null

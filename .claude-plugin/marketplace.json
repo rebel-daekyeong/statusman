@@ -1,0 +1,14 @@
+{
+  "name": "statusman-local",
+  "owner": {
+    "name": "Daekyeong Kim",
+    "email": "daekyeong.kim@rebellions.ai"
+  },
+  "plugins": [
+    {
+      "name": "statusman",
+      "source": "./",
+      "description": "Two-line (or four-line) usage statusline for Claude Code."
+    }
+  ]
+}

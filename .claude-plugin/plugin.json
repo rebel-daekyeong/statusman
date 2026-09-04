@@ -1,0 +1,16 @@
+{
+  "name": "statusman",
+  "version": "0.1.0",
+  "description": "A two-line (or four-line) Claude Code statusline: organization, account, model, effort, session and working directory on top; context window, 5-hour, weekly and model-scoped usage gauges below.",
+  "author": {
+    "name": "Daekyeong Kim",
+    "email": "daekyeong.kim@rebellions.ai"
+  },
+  "license": "MIT",
+  "keywords": [
+    "statusline",
+    "usage",
+    "rate-limits",
+    "context-window"
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "name": "statusman",
+  "version": "0.1.0",
+  "description": "A two-line (or four-line) Claude Code statusline: account, model, effort and session on top, context and rate-limit gauges below.",
+  "license": "MIT",
+  "author": "Daekyeong Kim <daekyeong.kim@rebellions.ai>",
+  "private": true,
+  "type": "commonjs",
+  "main": "statusline.js",
+  "files": [
+    "statusline.js",
+    "install.js",
+    "commands",
+    ".claude-plugin"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "check": "pnpm run lint && pnpm test"
+  },
+  "devDependencies": {
+    "eslint": "^9.39.0"
+  },
+  "keywords": [
+    "claude-code",
+    "claude-code-plugin",
+    "statusline"
+  ]
+}

@@ -1,0 +1,5 @@
+node_modules/
+# Session scratch from the remember plugin; not part of the plugin.
+.remember/
+*.log
+.DS_Store
