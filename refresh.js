@@ -13,7 +13,7 @@
 
 "use strict";
 
-const { writeFileSync } = require("fs");
+const { utimesSync, writeFileSync } = require("fs");
 const { execFileSync } = require("child_process");
 const { join } = require("path");
 
@@ -28,6 +28,8 @@ const TIMEOUT_MS = 20_000;
 const oauthToken = (credentials) => {
   const oauth = credentials && credentials.claudeAiOauth;
   const token = oauth && oauth.accessToken;
+  // An expired token only earns a 401, and a minute later another.
+  if (oauth && typeof oauth.expiresAt === "number" && oauth.expiresAt <= Date.now()) return undefined;
   return typeof token === "string" && token ? token : undefined;
 };
 
@@ -35,6 +37,8 @@ const oauthToken = (credentials) => {
  * The signed-in account's OAuth token. Claude Code keeps it in the login
  * keychain on macOS and in a file everywhere else; the file is read first so a
  * test can point CLAUDE_CONFIG_DIR at one of its own and never see the real one.
+ * An expired file is passed over: on macOS Claude Code renews the keychain copy,
+ * so a file left beside it goes stale and stays that way.
  */
 function readToken() {
   const fromFile = oauthToken(readJsonFile(join(claudeConfigDir(), ".credentials.json")));
@@ -50,12 +54,31 @@ function readToken() {
   }
 }
 
+/**
+ * Date the statusline's lock to when the API said to come back. The statusline
+ * resends refresh.js once the lock is a minute old, so without this a 429 that
+ * asks for minutes is asked again every minute and never gets them.
+ */
+function holdOff(seconds) {
+  // shortcut: seconds form only, which is what the endpoint sends; parse an HTTP date if it ever sends one.
+  if (!(seconds > 0)) return;
+  const lockPath = `${usageCachePaths()[0]}.lock`;
+  const until = new Date(Date.now() + seconds * 1000);
+  ensureDirFor(lockPath);
+  // A run from the shell has no lock yet.
+  writeFileSync(lockPath, "");
+  utimesSync(lockPath, until, until);
+}
+
 async function fetchUsage(token) {
   const response = await fetch(USAGE_URL, {
     headers: { authorization: `Bearer ${token}`, "anthropic-beta": OAUTH_BETA },
     signal: AbortSignal.timeout(TIMEOUT_MS),
   });
-  if (!response.ok) throw new Error(`${USAGE_URL} answered ${response.status}`);
+  if (!response.ok) {
+    holdOff(Number(response.headers.get("retry-after")));
+    throw new Error(`${USAGE_URL} answered ${response.status}`);
+  }
   return response.json();
 }
 
