@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.1 — 2026-10-31
+
+- `refresh.js` passes over an expired token in `~/.claude/.credentials.json`
+  and reads the keychain instead. On macOS Claude Code renews only the keychain
+  copy, so a leftover file froze the model-scoped weekly cap at its last value.
+- A rate-limited refresh waits out `Retry-After` instead of asking again every
+  minute.
+
 ## 0.1.0 — 2026-09-04
 
 - Two-line statusline: organization, account, model, effort, session name and
