@@ -1,6 +1,6 @@
 {
   "name": "statusman",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A two-line (or four-line) Claude Code statusline: account, model, effort and session on top, context and rate-limit gauges below.",
   "license": "MIT",
   "author": "Daekyeong Kim <daekyeong.kim@rebellions.ai>",

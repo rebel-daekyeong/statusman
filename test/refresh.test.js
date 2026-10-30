@@ -31,7 +31,7 @@ async function sandbox(body) {
   const config = join(dir, ".claude");
   mkdirSync(config);
   writeFileSync(join(config, ".credentials.json"), JSON.stringify({
-    claudeAiOauth: { accessToken: "sk-ant-oat-test", expiresAt: NOW + MINUTE },
+    claudeAiOauth: { accessToken: "sk-ant-oat-test", expiresAt: Date.now() + 60 * MINUTE },
   }));
   try {
     // Awaited, not returned: the directory has to outlive the run inside it.
@@ -106,6 +106,49 @@ test("a refused request leaves the old snapshot in place", async () => {
     assert.equal(result.status, 1);
     assert.match(result.stderr, /answered 401/);
     assert.equal(JSON.parse(readFileSync(paths.cache, "utf-8")).fetchedAtMs, 1);
+  });
+});
+
+test("an expired token in the file gives way to the keychain", { skip: process.platform !== "darwin" }, async () => {
+  await sandbox(async (paths) => {
+    writeFileSync(join(paths.config, ".credentials.json"), JSON.stringify({
+      claudeAiOauth: { accessToken: "sk-ant-oat-stale", expiresAt: Date.now() - MINUTE },
+    }));
+    // A `security` of the test's own, so the real keychain is never read.
+    const bin = join(paths.dir, "bin");
+    mkdirSync(bin);
+    const keychain = JSON.stringify({ claudeAiOauth: { accessToken: "sk-ant-oat-keychain" } });
+    writeFileSync(join(bin, "security"), `#!/bin/sh\necho '${keychain}'\n`, { mode: 0o755 });
+
+    const seen = [];
+    const result = await withServer(
+      (request, response) => {
+        seen.push(request.headers.authorization);
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify(SNAPSHOT));
+      },
+      (url) => run(paths, url, { PATH: `${bin}:${process.env.PATH}` }),
+    );
+    assert.equal(result.status, 0, result.stderr);
+    assert.deepEqual(seen, ["Bearer sk-ant-oat-keychain"]);
+  });
+});
+
+test("a rate-limited request holds off the next one until Retry-After", async () => {
+  await sandbox(async (paths) => {
+    const stale = { fetchedAtMs: 1, utilization: { limits: [] } };
+    writeFileSync(paths.cache, JSON.stringify(stale));
+    const before = Date.now();
+    const result = await withServer(
+      (_request, response) => { response.writeHead(429, { "retry-after": "300" }); response.end("slow down"); },
+      (url) => run(paths, url),
+    );
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /answered 429/);
+    // Past the minute a lost fetch is given, but not yet past the five the API asked for.
+    const lock = `${paths.cache}.lock`;
+    assert.equal(shouldRefresh(stale, lock, before + 2 * MINUTE), false);
+    assert.equal(shouldRefresh(stale, lock, before + 7 * MINUTE), true);
   });
 });
 
