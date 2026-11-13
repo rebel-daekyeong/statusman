@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.1.2 — 2026-11-13
+
+- `org` shows the organization each session is signed in to. Sessions now keep
+  their own login, and `~/.claude.json` names only the one signed in to last;
+  the session's own comes from the `session-owner` entry Claude Code stamps
+  into its transcript. Names are learned into `~/.claude/statusman/orgs.json`
+  as each org is signed in to; one not seen yet shows the head of its uuid.
+- `refresh.js` stamps the usage snapshot with the org its token belongs to,
+  read from `/api/oauth/profile`. The token is only the one signed in to last,
+  so a session in another org no longer draws that org's model-scoped weekly
+  cap as its own; it goes without until its org is the one signed in to.
+
 ## 0.1.1 — 2026-10-31
 
 - `refresh.js` passes over an expired token in `~/.claude/.credentials.json`

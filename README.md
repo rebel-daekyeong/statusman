@@ -33,7 +33,7 @@ node statusman/install.js
 
 | id | shows |
 |---|---|
-| `org` | organization |
+| `org` | the organization this session is signed in to |
 | `account` | account, the local part of the email |
 | `model` | model display name |
 | `effort` | effort level |
@@ -80,7 +80,9 @@ Rendering reads no network. `scoped` — and `5h`/`week` when Claude Code does n
 pass them in — come from a cached `/api/oauth/usage` snapshot, the same
 undocumented endpoint `/usage` reads. Refreshing it runs in the background, and
 sends nothing but the OAuth token Claude Code already stores, to
-`api.anthropic.com`. With `scoped` off, no request is made at all.
+`api.anthropic.com`; `/api/oauth/profile` is asked alongside, for which org the
+snapshot belongs to. The token is the one signed in to last, so sessions in
+other orgs go without `scoped`. With `scoped` off, no request is made at all.
 
 ## Developing
 

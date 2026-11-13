@@ -18,6 +18,23 @@ test("identity comes from the account block and stdin", () => {
   assert.equal(context.cwd, "/Users/x/src/statusman");
 });
 
+test("the org this session is stamped with wins over the one signed in to last", () => {
+  const context = buildContext(sources({
+    owner: { organizationUuid: "954766a2-0000-4000-8000-000000000000" },
+    orgs: { "954766a2-0000-4000-8000-000000000000": "Rebellions-Plum" },
+  }), NOW);
+  assert.equal(context.org, "Rebellions-Plum");
+});
+
+test("an org not named yet shows the head of its uuid", () => {
+  const owner = { organizationUuid: "954766a2-0000-4000-8000-000000000000" };
+  assert.equal(buildContext(sources({ owner, orgs: {} }), NOW).org, "954766a2");
+});
+
+test("a stamp without an org falls back to the account block", () => {
+  assert.equal(buildContext(sources({ owner: { organizationUuid: undefined } }), NOW).org, "Rebellions-Lime");
+});
+
 test("the model id stands in for a missing display name", () => {
   const stdin = { ...sources().stdin, model: { id: "claude-opus-5" } };
   assert.equal(buildContext(sources({ stdin }), NOW).model, "claude-opus-5");
@@ -86,6 +103,18 @@ test("the scoped gauge names the model its cap belongs to", () => {
   const scoped = buildContext(sources(), NOW).scoped;
   assert.equal(scoped.percent, 54);
   assert.equal(scoped.trailer, "Fable");
+});
+
+test("a snapshot is drawn only for the org it was fetched for", () => {
+  const PLUM = "954766a2-0000-4000-8000-000000000000";
+  const LIME = "b8bf4ea6-0000-4000-8000-000000000000";
+  const stamped = (org) => ({ ...sources().cache, organizationUuid: org });
+  const scoped = (owner, cache) => buildContext(sources({ owner, cache }), NOW).scoped;
+  assert.equal(scoped({ organizationUuid: LIME }, stamped(PLUM)), undefined);
+  assert.equal(scoped({ organizationUuid: PLUM }, stamped(PLUM)).percent, 54);
+  // Either side unknown — a session from before the stamp, a snapshot another tool left — is taken on trust.
+  assert.equal(scoped(undefined, stamped(PLUM)).percent, 54);
+  assert.equal(scoped({ organizationUuid: LIME }, sources().cache).percent, 54);
 });
 
 test("the binding scoped cap wins when several models report one", () => {

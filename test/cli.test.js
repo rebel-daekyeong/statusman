@@ -119,6 +119,29 @@ test("--list says so when the components that need stdin have none", () => {
   });
 });
 
+test("each session shows the org its own transcript is stamped with", () => {
+  withSandbox((home) => {
+    const PLUM = "954766a2-0000-4000-8000-000000000000";
+    const signIn = (organizationUuid, organizationName) => writeFileSync(join(home, ".claude.json"), JSON.stringify({
+      oauthAccount: { organizationUuid, organizationName, emailAddress: "daekyeong.kim@rebellions.ai" },
+    }));
+    const transcript = join(home, "session.jsonl");
+    writeFileSync(transcript, `${JSON.stringify({ type: "session-owner", accountUuid: "a", organizationUuid: PLUM })}\n`);
+    const input = JSON.stringify({ ...JSON.parse(STDIN), transcript_path: transcript });
+
+    // Signed in to elsewhere last, and Plum never seen by name: the uuid's head.
+    signIn("b8bf4ea6-0000-4000-8000-000000000000", "Rebellions-Lime");
+    assert.match(run(home, [], input).lines[0], /^954766a2 \| /);
+
+    // A login to Plum anywhere teaches the name, which outlives the next login.
+    signIn(PLUM, "Rebellions-Plum");
+    run(home);
+    signIn("b8bf4ea6-0000-4000-8000-000000000000", "Rebellions-Lime");
+    assert.match(run(home, [], input).lines[0], /^Rebellions-Plum \| /);
+    assert.match(run(home, [], STDIN).lines[0], /^Rebellions-Lime \| /);
+  });
+});
+
 test("--off and --on survive into the next render", () => {
   withSandbox((home) => {
     assert.equal(run(home, ["--off", "cwd", "scoped"]).status, 0);

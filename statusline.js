@@ -14,7 +14,9 @@
 
 "use strict";
 
-const { mkdirSync, readFileSync, statSync, writeFileSync } = require("fs");
+const {
+  closeSync, fstatSync, mkdirSync, openSync, readFileSync, readSync, renameSync, statSync, writeFileSync,
+} = require("fs");
 const { spawn } = require("child_process");
 const { join, basename, dirname } = require("path");
 const { homedir } = require("os");
@@ -312,9 +314,25 @@ function buildScoped(limits, now) {
   return undefined;
 }
 
+/**
+ * The organization this session is signed in to. Each session keeps its own
+ * login, so ~/.claude.json names only the org signed in to last; the session's
+ * own is the uuid Claude Code stamps into its transcript, named from the names
+ * statusman has seen. One not seen yet shows the head of its uuid, which still
+ * tells two sessions apart. Without a stamp the account block is all there is.
+ */
+function sessionOrg(account, owner, orgs) {
+  const uuid = isRecord(owner) ? owner.organizationUuid : undefined;
+  if (typeof uuid !== "string" || !uuid) {
+    return isRecord(account) && typeof account.organizationName === "string" ? account.organizationName : undefined;
+  }
+  const name = isRecord(orgs) ? orgs[uuid] : undefined;
+  return typeof name === "string" && name ? name : uuid.slice(0, 8);
+}
+
 /** Everything the components draw from, read once per render. */
 function buildContext(sources, now) {
-  const { stdin, config, cache } = sources;
+  const { stdin, config, cache, owner, orgs } = sources;
   const account = isRecord(config) ? config.oauthAccount : undefined;
   const email = isRecord(account) && typeof account.emailAddress === "string" ? account.emailAddress : undefined;
 
@@ -341,9 +359,13 @@ function buildContext(sources, now) {
     context = { percent: cw.used_percentage, trailer: used === undefined ? undefined : formatTokens(used) };
   }
 
-  const limits = pickLimits(stdin, cache);
+  // refresh.js fetches with the token signed in to last, which can be another
+  // org's than this session's; that snapshot holds someone else's limits.
+  const sessionUuid = isRecord(owner) ? owner.organizationUuid : undefined;
+  const snapshotUuid = isRecord(cache) ? cache.organizationUuid : undefined;
+  const limits = pickLimits(stdin, sessionUuid && snapshotUuid && sessionUuid !== snapshotUuid ? undefined : cache);
   return {
-    org: isRecord(account) && typeof account.organizationName === "string" ? account.organizationName : undefined,
+    org: sessionOrg(account, owner, orgs),
     account: email ? email.split("@")[0] : undefined,
     model: typeof model === "string" && model ? model : undefined,
     effort: isRecord(effortInfo) && effortInfo.level != null ? String(effortInfo.level) : undefined,
@@ -641,6 +663,68 @@ function refreshUsageCache(cache, now = Date.now()) {
   }
 }
 
+/** The `session-owner` entry, as Claude Code writes it: `type` comes first. */
+const OWNER_MARK = '"type":"session-owner"';
+/** How far back from the end of the transcript to look for one. */
+const OWNER_LOOKBACK = 1024 * 1024;
+
+/**
+ * The org a session is signed in to, from the last `session-owner` entry in
+ * its transcript. Claude Code stamps one at every login and again
+ * every few turns, so the newest sits near the end.
+ */
+function readSessionOwner(transcriptPath) {
+  if (typeof transcriptPath !== "string" || !transcriptPath) return undefined;
+  let fd;
+  try {
+    fd = openSync(transcriptPath, "r");
+    const size = fstatSync(fd).size;
+    // shortcut: looks back 1 MB only, so a turn that writes more between stamps falls back to ~/.claude.json;
+    // walk back further in chunks if that shows up.
+    const start = Math.max(0, size - OWNER_LOOKBACK);
+    const tail = Buffer.alloc(size - start);
+    readSync(fd, tail, 0, tail.length, start);
+    const at = tail.lastIndexOf(OWNER_MARK);
+    if (at === -1) return undefined;
+    const eol = tail.indexOf("\n", at);
+    const line = tail.toString("utf-8", at, eol === -1 ? tail.length : eol);
+    const org = /"organizationUuid":"([^"]*)"/.exec(line);
+    return { organizationUuid: org ? org[1] : undefined };
+  } catch {
+    return undefined;
+  } finally {
+    if (fd !== undefined) closeSync(fd);
+  }
+}
+
+/** Org names by uuid, as ~/.claude.json has named them over time. */
+const orgNamesPath = () => join(statusmanDir(), "orgs.json");
+
+/**
+ * Add the org ~/.claude.json names now to the ones seen before, and return
+ * them all. Every login writes its org there, so an org any session signs in
+ * to gets its name here on the next render of any statusline.
+ */
+function rememberOrg(config) {
+  const path = orgNamesPath();
+  const stored = readJsonFile(path);
+  const names = isRecord(stored) ? stored : {};
+  const account = isRecord(config) ? config.oauthAccount : undefined;
+  const uuid = isRecord(account) ? account.organizationUuid : undefined;
+  const name = isRecord(account) ? account.organizationName : undefined;
+  if (typeof uuid !== "string" || !uuid || typeof name !== "string" || !name || names[uuid] === name) return names;
+  names[uuid] = name;
+  try {
+    // Every open session's statusline sees a login at once; a rename keeps
+    // each from reading another's half-written file as empty.
+    const temp = `${path}.${process.pid}`;
+    ensureDirFor(path);
+    writeFileSync(temp, `${JSON.stringify(names, null, 2)}\n`);
+    renameSync(temp, path);
+  } catch { /* an unwritable config dir: the name still serves this render */ }
+  return names;
+}
+
 function collectSources() {
   let stdinData = "";
   // Claude Code pipes the statusline JSON in; a run from the shell has a TTY
@@ -661,7 +745,14 @@ function collectSources() {
     if (cache) break;
   }
 
-  return { stdin, config: readJsonFile(join(homedir(), ".claude.json")), cache };
+  const config = readJsonFile(join(homedir(), ".claude.json"));
+  return {
+    stdin,
+    config,
+    cache,
+    owner: readSessionOwner(isRecord(stdin) ? stdin.transcript_path : undefined),
+    orgs: rememberOrg(config),
+  };
 }
 
 // --- command line ----------------------------------------------------------
@@ -785,7 +876,9 @@ module.exports = {
   readDisabled,
   readJsonFile,
   readLines,
+  readSessionOwner,
   refreshUsageCache,
+  rememberOrg,
   render,
   renderBar,
   setLines,
