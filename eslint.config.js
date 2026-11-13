@@ -11,8 +11,9 @@ module.exports = [
       sourceType: "commonjs",
       globals: {
         module: "writable", require: "readonly", process: "readonly", console: "readonly", __dirname: "readonly",
+        Buffer: "readonly",
         // Node 18's own globals, which refresh.js is the only user of.
-        fetch: "readonly", AbortSignal: "readonly",
+        fetch: "readonly", AbortSignal: "readonly", URL: "readonly",
       },
     },
     linterOptions: { reportUnusedDisableDirectives: "error" },

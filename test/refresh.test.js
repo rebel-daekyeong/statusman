@@ -21,6 +21,13 @@ const SNAPSHOT = {
   five_hour: { utilization: 30, resets_at: "2026-09-04T16:50:00Z" },
   limits: [{ kind: "weekly_scoped", percent: 59, is_active: false, scope: { model: { display_name: "Fable" } } }],
 };
+const PROFILE = { organization: { uuid: "954766a2-0000-4000-8000-000000000000", name: "Rebellions-Plum" } };
+
+/** Answer as the API does: the profile at its own path, usage everywhere else. */
+function answer(request, response) {
+  response.writeHead(200, { "content-type": "application/json" });
+  response.end(JSON.stringify(request.url === "/api/oauth/profile" ? PROFILE : SNAPSHOT));
+}
 
 /**
  * A config dir with a credentials file of its own. refresh.js reads the file
@@ -77,22 +84,41 @@ test("the snapshot is fetched with the account's token and cached whole", async 
     const result = await withServer(
       (request, response) => {
         seen.push({ url: request.url, headers: request.headers });
-        response.writeHead(200, { "content-type": "application/json" });
-        response.end(JSON.stringify(SNAPSHOT));
+        answer(request, response);
       },
       (url) => run(paths, url),
     );
 
     assert.equal(result.status, 0, result.stderr);
-    assert.equal(seen.length, 1);
-    assert.equal(seen[0].url, "/api/oauth/usage");
-    assert.equal(seen[0].headers.authorization, "Bearer sk-ant-oat-test");
-    assert.equal(seen[0].headers["anthropic-beta"], "oauth-2025-04-20");
+    assert.deepEqual(seen.map((s) => s.url).sort(), ["/api/oauth/profile", "/api/oauth/usage"]);
+    for (const { headers } of seen) {
+      assert.equal(headers.authorization, "Bearer sk-ant-oat-test");
+      assert.equal(headers["anthropic-beta"], "oauth-2025-04-20");
+    }
 
     const cached = JSON.parse(readFileSync(paths.cache, "utf-8"));
     assert.equal(typeof cached.fetchedAtMs, "number");
     // Under the key the statusline reads back, and with nothing dropped.
     assert.deepEqual(cached.utilization, SNAPSHOT);
+    // Stamped with the org the token belongs to, so other orgs' sessions pass it over.
+    assert.equal(cached.organizationUuid, PROFILE.organization.uuid);
+  });
+});
+
+test("a refused profile leaves the old snapshot in place", async () => {
+  await sandbox(async (paths) => {
+    writeFileSync(paths.cache, JSON.stringify({ fetchedAtMs: 1, utilization: { limits: [] } }));
+    const result = await withServer(
+      (request, response) => {
+        if (request.url !== "/api/oauth/profile") return answer(request, response);
+        response.writeHead(500);
+        return response.end("no");
+      },
+      (url) => run(paths, url),
+    );
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /profile answered 500/);
+    assert.equal(JSON.parse(readFileSync(paths.cache, "utf-8")).fetchedAtMs, 1);
   });
 });
 
@@ -124,13 +150,12 @@ test("an expired token in the file gives way to the keychain", { skip: process.p
     const result = await withServer(
       (request, response) => {
         seen.push(request.headers.authorization);
-        response.writeHead(200, { "content-type": "application/json" });
-        response.end(JSON.stringify(SNAPSHOT));
+        answer(request, response);
       },
       (url) => run(paths, url, { PATH: `${bin}:${process.env.PATH}` }),
     );
     assert.equal(result.status, 0, result.stderr);
-    assert.deepEqual(seen, ["Bearer sk-ant-oat-keychain"]);
+    assert.deepEqual(seen, ["Bearer sk-ant-oat-keychain", "Bearer sk-ant-oat-keychain"]);
   });
 });
 

@@ -21,6 +21,8 @@ const { claudeConfigDir, ensureDirFor, readJsonFile, usageCachePaths } = require
 
 /** Undocumented, and the same endpoint `/usage` reads. */
 const USAGE_URL = process.env.STATUSMAN_USAGE_URL || "https://api.anthropic.com/api/oauth/usage";
+/** Beside the usage endpoint, so a test server standing in for one serves both. */
+const PROFILE_URL = new URL("profile", USAGE_URL).href;
 const OAUTH_BETA = "oauth-2025-04-20";
 /** The request took ~5s when measured, so the ceiling is generous. */
 const TIMEOUT_MS = 20_000;
@@ -70,16 +72,27 @@ function holdOff(seconds) {
   utimesSync(lockPath, until, until);
 }
 
-async function fetchUsage(token) {
-  const response = await fetch(USAGE_URL, {
+async function fetchJson(url, token) {
+  const response = await fetch(url, {
     headers: { authorization: `Bearer ${token}`, "anthropic-beta": OAUTH_BETA },
     signal: AbortSignal.timeout(TIMEOUT_MS),
   });
   if (!response.ok) {
     holdOff(Number(response.headers.get("retry-after")));
-    throw new Error(`${USAGE_URL} answered ${response.status}`);
+    throw new Error(`${url} answered ${response.status}`);
   }
   return response.json();
+}
+
+/**
+ * The usage snapshot, and the org it belongs to. Each session keeps its own
+ * login, and the token here is only the one signed in to last, so a session in
+ * another org needs the uuid to know the snapshot is not its own.
+ */
+async function fetchUsage(token) {
+  const [usage, profile] = await Promise.all([fetchJson(USAGE_URL, token), fetchJson(PROFILE_URL, token)]);
+  const org = profile && profile.organization;
+  return { usage, organizationUuid: org && typeof org.uuid === "string" ? org.uuid : undefined };
 }
 
 /**
@@ -87,10 +100,11 @@ async function fetchUsage(token) {
  * is kept whole: it carries more than the four gauges use, and a field that
  * turns out to matter later is then already there.
  */
-function writeSnapshot(body) {
+function writeSnapshot({ usage, organizationUuid }) {
   const path = usageCachePaths()[0];
+  const snapshot = { fetchedAtMs: Date.now(), source: "api", organizationUuid, utilization: usage };
   ensureDirFor(path);
-  writeFileSync(path, `${JSON.stringify({ fetchedAtMs: Date.now(), source: "api", utilization: body }, null, 2)}\n`);
+  writeFileSync(path, `${JSON.stringify(snapshot, null, 2)}\n`);
   return path;
 }
 
