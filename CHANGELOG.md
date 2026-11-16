@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.1.3 — 2026-11-16
+
+- `org` is again the organization signed in to last, as `~/.claude.json` names
+  it. 0.1.2 read the `session-owner` entry of the session's transcript, which
+  Claude Code never updates after a `/login` in that session, so a session
+  switched to another org kept showing the one it started in. A session still
+  running on an older login now shows the newer org instead: Claude Code holds
+  each session's token in memory and passes the statusline no org.
+  `~/.claude/statusman/orgs.json` is no longer written or read.
+- `scoped` compares the snapshot's org with that same login, so a snapshot
+  fetched before a switch is not drawn as the new org's.
+
 ## 0.1.2 — 2026-11-13
 
 - `org` shows the organization each session is signed in to. Sessions now keep
