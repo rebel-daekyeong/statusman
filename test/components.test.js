@@ -37,6 +37,23 @@ test("switching a component off removes exactly its own text", () => {
   assert.equal(lines(new Set(["scoped"]))[1].split(SEP).length, 3);
 });
 
+test("the peer name leads the session name and switches off on its own", () => {
+  const withPeer = (name) => sources({ stdin: { ...sources().stdin, session_id: "s1" }, sessions: [{ sessionId: "s1", name }] });
+  const top = (name, disabled = new Set()) => strip(render(withPeer(name), NOW, COLUMNS, disabled)[0]);
+  assert.ok(top("statusman-2b").includes(" | xhigh | statusman-2b | statusman | "));
+  assert.ok(top("statusman-2b", new Set(["peer"])).includes(" | xhigh | statusman | "));
+  const color = (id) => COMPONENTS.find((c) => c.id === id).color;
+  assert.equal(color("peer"), color("session"));
+});
+
+test("a peer name that is the session name prints once, whichever is on", () => {
+  const same = sources({ stdin: { ...sources().stdin, session_id: "s1" }, sessions: [{ sessionId: "s1", name: "statusman" }] });
+  for (const disabled of [new Set(), new Set(["peer"]), new Set(["session"])]) {
+    const top = strip(render(same, NOW, COLUMNS, disabled)[0]);
+    assert.ok(top.includes(" | xhigh | statusman | "), `${[...disabled]}: ${top}`);
+  }
+});
+
 test("the columns a component gave up go to the rest", () => {
   const wide = lines(new Set(["scoped"]))[1];
   const narrow = lines(new Set())[1];

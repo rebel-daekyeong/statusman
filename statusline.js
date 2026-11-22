@@ -15,7 +15,7 @@
 "use strict";
 
 const {
-  mkdirSync, readFileSync, statSync, writeFileSync,
+  mkdirSync, readdirSync, readFileSync, statSync, writeFileSync,
 } = require("fs");
 const { spawn } = require("child_process");
 const { join, basename, dirname } = require("path");
@@ -315,8 +315,23 @@ function buildScoped(limits, now) {
 }
 
 /** Everything the components draw from, read once per render. */
+/**
+ * The session's peer name — the address other sessions message it by, such as
+ * `statusman-2b` — from Claude Code's `sessions/<pid>.json` records. stdin does
+ * not carry it. A record a crashed process left behind can share the session
+ * id, so the most recently updated one wins.
+ */
+function peerName(stdin, sessions) {
+  const id = isRecord(stdin) ? stdin.session_id : undefined;
+  if (typeof id !== "string" || !Array.isArray(sessions)) return undefined;
+  const newest = sessions
+    .filter((s) => isRecord(s) && s.sessionId === id && typeof s.name === "string" && s.name)
+    .reduce((best, s) => (!best || (s.updatedAt ?? 0) > (best.updatedAt ?? 0) ? s : best), undefined);
+  return newest?.name;
+}
+
 function buildContext(sources, now) {
-  const { stdin, config, cache } = sources;
+  const { stdin, config, cache, sessions } = sources;
   const account = isRecord(config) ? config.oauthAccount : undefined;
   const email = isRecord(account) && typeof account.emailAddress === "string" ? account.emailAddress : undefined;
 
@@ -355,6 +370,7 @@ function buildContext(sources, now) {
     account: email ? email.split("@")[0] : undefined,
     model: typeof model === "string" && model ? model : undefined,
     effort: isRecord(effortInfo) && effortInfo.level != null ? String(effortInfo.level) : undefined,
+    peer: peerName(stdin, sessions),
     // `session_name` only exists once the session has been named; the working
     // directory is the next-best label for telling two windows apart.
     session:
@@ -397,6 +413,8 @@ const COMPONENTS = [
   { id: "model", line: { 2: 1, 4: 1 }, kind: "text", color: YELLOW, pick: (c) => c.model },
   // Model and effort describe one thing — what is answering — so they share a color.
   { id: "effort", line: { 2: 1, 4: 1 }, kind: "text", color: YELLOW, pick: (c) => c.effort },
+  // The peer name and the session name both label the session, so they share a color.
+  { id: "peer", line: { 2: 1, 4: 2 }, kind: "text", color: MAGENTA, pick: (c) => c.peer },
   { id: "session", line: { 2: 1, 4: 2 }, kind: "text", color: MAGENTA, pick: (c) => c.session },
   { id: "cwd", line: { 2: 1, 4: 2 }, kind: "path", color: BLUE, pick: (c) => c.cwd },
   { id: "ctx", line: { 2: 2, 4: 3 }, kind: "gauge", pick: (c) => c.context },
@@ -483,9 +501,13 @@ function renderGauge(gauge, views, cells, now) {
 function renderTextLine(components, context, columns) {
   const parts = [];
   let used = 0;
+  let previous;
   for (const component of components) {
     const value = component.pick(context);
-    if (!value) continue;
+    // Neighbours saying the same thing — a session whose peer name is its
+    // session name — print it once.
+    if (!value || value === previous) continue;
+    previous = value;
     const gap = parts.length ? SEP.length : 0;
     const budget = columns - used - gap;
     const text = component.kind === "path" ? fitPathTail(value, budget) : clip(value, budget);
@@ -669,7 +691,17 @@ function collectSources() {
     if (cache) break;
   }
 
-  return { stdin, config: readJsonFile(join(homedir(), ".claude.json")), cache };
+  return { stdin, config: readJsonFile(join(homedir(), ".claude.json")), cache, sessions: readSessions() };
+}
+
+/** Claude Code's record of every running session, one `sessions/<pid>.json` each. */
+function readSessions() {
+  const dir = join(claudeConfigDir(), "sessions");
+  try {
+    return readdirSync(dir).filter((file) => file.endsWith(".json")).map((file) => readJsonFile(join(dir, file)));
+  } catch {
+    return [];
+  }
 }
 
 // --- command line ----------------------------------------------------------

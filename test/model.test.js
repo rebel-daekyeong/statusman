@@ -28,9 +28,23 @@ test("an unnamed session falls back to the directory's basename", () => {
   assert.equal(buildContext(sources({ stdin }), NOW).session, "statusman");
 });
 
+test("the peer name is the newest record of this session's id", () => {
+  const stdin = { ...sources().stdin, session_id: "s1" };
+  const sessions = [
+    { sessionId: "s2", name: "rblnc-58", updatedAt: 3 },
+    { sessionId: "s1", name: "statusman-1f", updatedAt: 1 },
+    { sessionId: "s1", name: "statusman-2b", updatedAt: 2 },
+    undefined,
+  ];
+  const context = buildContext(sources({ stdin, sessions }), NOW);
+  assert.equal(context.peer, "statusman-2b");
+  assert.equal(context.session, "statusman");
+  assert.equal(buildContext(sources({ sessions }), NOW).peer, undefined, "no session id on stdin");
+});
+
 test("nothing readable leaves every field undefined", () => {
   const context = buildContext({ stdin: undefined, config: undefined, cache: undefined }, NOW);
-  for (const key of ["org", "account", "model", "effort", "session", "cwd", "context", "scoped"]) {
+  for (const key of ["org", "account", "model", "effort", "peer", "session", "cwd", "context", "scoped"]) {
     assert.equal(context[key], undefined, key);
   }
 });

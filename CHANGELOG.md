@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.0 — 2026-11-22
+
+- New `peer` component: the session's peer name, the address other sessions
+  message it by (`statusman-2b`), drawn before `session` in the same color.
+  stdin does not carry it, so it is read from Claude Code's
+  `sessions/<pid>.json` record with the session's id. Switch it off with
+  `/statusman off peer`.
+- A peer name that is also the session name prints once.
+
 ## 0.1.3 — 2026-11-16
 
 - `org` is again the organization signed in to last, as `~/.claude.json` names
