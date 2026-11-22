@@ -37,7 +37,8 @@ node statusman/install.js
 | `account` | account, the local part of the email |
 | `model` | model display name |
 | `effort` | effort level |
-| `session` | session name, or the working directory's basename |
+| `peer` | peer name, the address other sessions message this one by (`statusman-2b`) |
+| `session` | session name, or the working directory's basename; once if it is the peer name |
 | `cwd` | working directory |
 | `ctx` | context window, with the tokens used |
 | `5h` | the 5-hour window, with its countdown |
