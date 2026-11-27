@@ -33,15 +33,17 @@ test("each layout uses every one of its rows", () => {
 
 test("switching a component off removes exactly its own text", () => {
   const [top] = lines(new Set(["org", "account", "cwd"]));
-  assert.equal(top, "Opus 5 | xhigh | statusman");
+  assert.equal(top, "⣶ Opus 5 | statusman");
+  // The effort glyph is glued to the model name only; without it, a separator.
+  assert.equal(lines(new Set(["org", "account", "model", "cwd"]))[0], "⣶ | statusman");
   assert.equal(lines(new Set(["scoped"]))[1].split(SEP).length, 3);
 });
 
 test("the peer name leads the session name and switches off on its own", () => {
   const withPeer = (name) => sources({ stdin: { ...sources().stdin, session_id: "s1" }, sessions: [{ sessionId: "s1", name }] });
   const top = (name, disabled = new Set()) => strip(render(withPeer(name), NOW, COLUMNS, disabled)[0]);
-  assert.ok(top("statusman-2b").includes(" | xhigh | statusman-2b | statusman | "));
-  assert.ok(top("statusman-2b", new Set(["peer"])).includes(" | xhigh | statusman | "));
+  assert.ok(top("statusman-2b").includes(" | ⣶ Opus 5 | statusman-2b | statusman | "));
+  assert.ok(top("statusman-2b", new Set(["peer"])).includes(" | ⣶ Opus 5 | statusman | "));
   const color = (id) => COMPONENTS.find((c) => c.id === id).color;
   assert.equal(color("peer"), color("session"));
 });
@@ -50,7 +52,7 @@ test("a peer name that is the session name prints once, whichever is on", () => 
   const same = sources({ stdin: { ...sources().stdin, session_id: "s1" }, sessions: [{ sessionId: "s1", name: "statusman" }] });
   for (const disabled of [new Set(), new Set(["peer"]), new Set(["session"])]) {
     const top = strip(render(same, NOW, COLUMNS, disabled)[0]);
-    assert.ok(top.includes(" | xhigh | statusman | "), `${[...disabled]}: ${top}`);
+    assert.ok(top.includes(" | ⣶ Opus 5 | statusman | "), `${[...disabled]}: ${top}`);
   }
 });
 

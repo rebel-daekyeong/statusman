@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // statusman — a two-line Claude Code statusline.
 //
-//   Rebellions-Lime | daekyeong.kim | Opus 5 | xhigh | statusman | …/src/statusman
+//   Rebellions-Lime | daekyeong.kim | ⣶ Opus 5 | statusman | …/src/statusman
 //   ██░░░░░░░░░░░░░ 13% 26k | █|███░░░░░░░░░░ 30% 4h25m | ...
 //
 // The statusline is a list of components (see COMPONENTS). Each one knows how
@@ -314,7 +314,6 @@ function buildScoped(limits, now) {
   return undefined;
 }
 
-/** Everything the components draw from, read once per render. */
 /**
  * The session's peer name — the address other sessions message it by, such as
  * `statusman-2b` — from Claude Code's `sessions/<pid>.json` records. stdin does
@@ -330,6 +329,14 @@ function peerName(stdin, sessions) {
   return newest?.name;
 }
 
+// Braille dots, more of them at each level, so the inked area tracks the effort
+// without looking like the gauges' bars.
+const EFFORT_GLYPHS = { low: "⡀", medium: "⣀", high: "⣤", xhigh: "⣶", max: "⣿" };
+
+/** One glyph per known effort level; a level this list does not know prints as its name. */
+const effortGlyph = (level) => (Object.hasOwn(EFFORT_GLYPHS, level) ? EFFORT_GLYPHS[level] : level);
+
+/** Everything the components draw from, read once per render. */
 function buildContext(sources, now) {
   const { stdin, config, cache, sessions } = sources;
   const account = isRecord(config) ? config.oauthAccount : undefined;
@@ -369,7 +376,7 @@ function buildContext(sources, now) {
     org: isRecord(account) && typeof account.organizationName === "string" ? account.organizationName : undefined,
     account: email ? email.split("@")[0] : undefined,
     model: typeof model === "string" && model ? model : undefined,
-    effort: isRecord(effortInfo) && effortInfo.level != null ? String(effortInfo.level) : undefined,
+    effort: isRecord(effortInfo) && effortInfo.level != null ? effortGlyph(String(effortInfo.level)) : undefined,
     peer: peerName(stdin, sessions),
     // `session_name` only exists once the session has been named; the working
     // directory is the next-best label for telling two windows apart.
@@ -410,9 +417,11 @@ const DIM_SEP = `${DIM}${SEP}${RESET}`;
 const COMPONENTS = [
   { id: "org", line: { 2: 1, 4: 1 }, kind: "text", color: CYAN, pick: (c) => c.org },
   { id: "account", line: { 2: 1, 4: 1 }, kind: "text", color: CYAN, pick: (c) => c.account },
+  // Model and effort describe one thing — what is answering — so they share a
+  // color, and the effort glyph sits against the model name (`glue`) rather
+  // than a separator away from it.
+  { id: "effort", line: { 2: 1, 4: 1 }, kind: "text", color: YELLOW, glue: "model", pick: (c) => c.effort },
   { id: "model", line: { 2: 1, 4: 1 }, kind: "text", color: YELLOW, pick: (c) => c.model },
-  // Model and effort describe one thing — what is answering — so they share a color.
-  { id: "effort", line: { 2: 1, 4: 1 }, kind: "text", color: YELLOW, pick: (c) => c.effort },
   // The peer name and the session name both label the session, so they share a color.
   { id: "peer", line: { 2: 1, 4: 2 }, kind: "text", color: MAGENTA, pick: (c) => c.peer },
   { id: "session", line: { 2: 1, 4: 2 }, kind: "text", color: MAGENTA, pick: (c) => c.session },
@@ -499,23 +508,25 @@ function renderGauge(gauge, views, cells, now) {
  * colors are already in it.
  */
 function renderTextLine(components, context, columns) {
-  const parts = [];
+  let colored = "";
   let used = 0;
   let previous;
+  let last;
   for (const component of components) {
     const value = component.pick(context);
     // Neighbours saying the same thing — a session whose peer name is its
     // session name — print it once.
     if (!value || value === previous) continue;
     previous = value;
-    const gap = parts.length ? SEP.length : 0;
-    const budget = columns - used - gap;
+    const gap = !last ? "" : last.glue === component.id ? " " : SEP;
+    const budget = columns - used - gap.length;
     const text = component.kind === "path" ? fitPathTail(value, budget) : clip(value, budget);
     if (!text) continue;
-    used += gap + textWidth(text);
-    parts.push(`${component.color}${text}${RESET}`);
+    used += gap.length + textWidth(text);
+    colored += `${gap === SEP ? DIM_SEP : gap}${component.color}${text}${RESET}`;
+    last = component;
   }
-  return { colored: parts.join(DIM_SEP), width: used };
+  return { colored, width: used };
 }
 
 /**

@@ -35,8 +35,8 @@ node statusman/install.js
 |---|---|
 | `org` | the organization signed in to last |
 | `account` | account, the local part of the email |
+| `effort` | effort level as one glyph against the model name: `⡀` low, `⣀` medium, `⣤` high, `⣶` xhigh, `⣿` max |
 | `model` | model display name |
-| `effort` | effort level |
 | `peer` | peer name, the address other sessions message this one by (`statusman-2b`) |
 | `session` | session name, or the working directory's basename; once if it is the peer name |
 | `cwd` | working directory |
@@ -66,7 +66,7 @@ Four lines splits each row in half, so every component gets about twice the
 columns:
 
 ```
-Rebellions-Lychee | daekyeong.kim | Opus 5 | xhigh
+Rebellions-Lychee | daekyeong.kim | ⣶ Opus 5
 README rewrite | /Users/daekyeong/src/statusman
 █████████░░░░░░░░░░░░░░░░░░░░░░░░░░░ 24% 240k | █|██░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 10% 4h49m
 █████████████████████|░░░░░░░░░░░░░░ 61% 2d21h | ██████████████████░░░|░░░░░░░░░░░░░░ 50% Fable

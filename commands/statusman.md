@@ -20,6 +20,6 @@ Arguments given: `$ARGUMENTS`
 (identity split over two lines, gauges over two more, so everything gets about
 twice the columns).
 
-Component ids are `org`, `account`, `model`, `effort`, `peer`, `session`, `cwd` and
+Component ids are `org`, `account`, `effort`, `model`, `peer`, `session`, `cwd` and
 `ctx`, `5h`, `week`, `scoped`. If the user names something that is not an id,
 run `--list` and let them pick from it.

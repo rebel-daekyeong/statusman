@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.0 — 2026-11-27
+
+- `effort` prints as one glyph right before the model name, a space away
+  instead of a separator: `⡀` low, `⣀` medium, `⣤` high, `⣶` xhigh, `⣿` max.
+  A level outside that list prints as its name. With `model` switched off the
+  glyph keeps its separator.
+
 ## 0.2.0 — 2026-11-22
 
 - New `peer` component: the session's peer name, the address other sessions

@@ -24,7 +24,7 @@ test("the terminal's own indent is kept clear", () => {
 
 test("the default layout is two lines", () => {
   const [top, bottom] = lines(sources());
-  assert.equal(top, "Rebellions-Lime | daekyeong.kim | Opus 5 | xhigh | statusman | /Users/x/src/statusman");
+  assert.equal(top, "Rebellions-Lime | daekyeong.kim | ⣶ Opus 5 | statusman | /Users/x/src/statusman");
   assert.equal(bottom.split(SEP).length, 4);
   assert.equal(lines(sources()).length, 2);
 });
@@ -84,24 +84,24 @@ test("the trailers go next, and only then whole gauges", () => {
 test("the cwd rewrites itself from the front, then bows out", () => {
   assert.ok(lines(sources(), 113)[0].endsWith(" | /Users/x/src/statusman"));
   // Whole segments go first, so what is left is still a readable path.
-  assert.ok(lines(sources(), 84)[0].endsWith(" | …/x/src/statusman"));
-  assert.ok(lines(sources(), 78)[0].endsWith(" | …/src/statusman"));
+  assert.ok(lines(sources(), 78)[0].endsWith(" | …/x/src/statusman"));
+  assert.ok(lines(sources(), 72)[0].endsWith(" | …/src/statusman"));
   // Only a budget too small for that cuts inside the last segment.
-  assert.ok(lines(sources(), 70)[0].endsWith(" | …tusman"));
+  assert.ok(lines(sources(), 64)[0].endsWith(" | …tusman"));
   // Too narrow for even an ellipsis and two characters: the cwd is dropped.
-  assert.ok(lines(sources(), 60)[0].endsWith("| statusman"));
+  assert.ok(lines(sources(), 54)[0].endsWith("| statusman"));
 });
 
 test("text components clip their tails, and drop out with no room at all", () => {
-  assert.ok(lines(sources(), 55)[0].endsWith("| sta…"));
-  assert.equal(lines(sources(), 40)[0], "Rebellions-Lime | daekyeong.kim | Opus 5");
+  assert.ok(lines(sources(), 49)[0].endsWith("| sta…"));
+  assert.equal(lines(sources(), 42)[0], "Rebellions-Lime | daekyeong.kim | ⣶ Opus 5");
   assert.ok(lines(sources(), 24)[0].endsWith("…"));
 });
 
 test("the four-line layout gives every component its own row", () => {
   const tall = lines(sources(), COLUMNS, undefined, 4);
   assert.equal(tall.length, 4);
-  assert.equal(tall[0], "Rebellions-Lime | daekyeong.kim | Opus 5 | xhigh");
+  assert.equal(tall[0], "Rebellions-Lime | daekyeong.kim | ⣶ Opus 5");
   assert.equal(tall[1], "statusman | /Users/x/src/statusman");
   assert.equal(tall[2].split(SEP).length, 2);
   assert.equal(tall[3].split(SEP).length, 2);
