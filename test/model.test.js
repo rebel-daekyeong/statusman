@@ -13,9 +13,17 @@ test("identity comes from the account block and stdin", () => {
   assert.equal(context.org, "Rebellions-Lime");
   assert.equal(context.account, "daekyeong.kim");
   assert.equal(context.model, "Opus 5");
-  assert.equal(context.effort, "xhigh");
+  assert.equal(context.effort, "⣶");
   assert.equal(context.session, "statusman");
   assert.equal(context.cwd, "/Users/x/src/statusman");
+});
+
+test("each effort level prints as one glyph, and an unknown one as its name", () => {
+  const effort = (level) => buildContext(sources({ stdin: { ...sources().stdin, effort: { level } } }), NOW).effort;
+  const glyphs = ["low", "medium", "high", "xhigh", "max"].map(effort);
+  assert.deepEqual(glyphs, ["⡀", "⣀", "⣤", "⣶", "⣿"]);
+  assert.equal(effort("ultra"), "ultra");
+  assert.equal(effort("toString"), "toString");
 });
 
 test("the model id stands in for a missing display name", () => {

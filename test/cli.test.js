@@ -69,7 +69,7 @@ test("the statusline renders from the JSON on stdin", () => {
     const { status, lines } = run(home, [], STDIN);
     assert.equal(status, 0);
     assert.equal(lines.length, 2);
-    assert.equal(lines[0], "Rebellions-Lime | daekyeong.kim | Opus 5 | xhigh | statusman | /Users/x/src/statusman");
+    assert.equal(lines[0], "Rebellions-Lime | daekyeong.kim | ⣶ Opus 5 | statusman | /Users/x/src/statusman");
     assert.match(lines[1], / 13% 26k \| /);
     assert.match(lines[1], / 54% Fable$/);
   });
